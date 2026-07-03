@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Plus, ChevronLeft, ChevronRight, Check, Trash2 } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Check, Trash2, LogOut } from "lucide-react";
+import { supabase } from "./supabaseClient";
+import Auth from "./Auth";
 
 const PALETTE = ["#4C7A5C", "#C99A4B", "#8A6FB0", "#B0584F", "#3D7C93", "#7A8A3F"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -14,6 +16,7 @@ function daysInMonth(year, month) {
 }
 
 export default function App() {
+  const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
   const [routines, setRoutines] = useState([]);
   const [completions, setCompletions] = useState({});
   const [loaded, setLoaded] = useState(false);
@@ -27,20 +30,40 @@ export default function App() {
   const [error, setError] = useState("");
   const scrollRef = useRef(null);
 
+  // Track auth session
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setRoutines(parsed.routines || []);
-        setCompletions(parsed.completions || {});
-      }
-    } catch (e) {
-      // no existing data, or storage unavailable
-    } finally {
-      setLoaded(true);
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => listener.subscription.unsubscribe();
   }, []);
+
+  // Load this user's data once logged in
+  useEffect(() => {
+    if (!session) {
+      setLoaded(session === null);
+      return;
+    }
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("user_data")
+          .select("data")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        if (error) throw error;
+        if (data && data.data) {
+          setRoutines(data.data.routines || []);
+          setCompletions(data.data.completions || {});
+        }
+      } catch (e) {
+        setError("Couldn't load your saved data.");
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, [session]);
 
   // Scroll to today's column once loaded
   useEffect(() => {
@@ -51,15 +74,20 @@ export default function App() {
   }, [loaded, viewDate]);
 
   const persist = useCallback((nextRoutines, nextCompletions) => {
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ routines: nextRoutines, completions: nextCompletions })
-      );
-    } catch (e) {
-      setError("Couldn't save — your changes may not persist.");
-    }
-  }, []);
+    if (!session) return;
+    (async () => {
+      try {
+        const { error } = await supabase.from("user_data").upsert({
+          user_id: session.user.id,
+          data: { routines: nextRoutines, completions: nextCompletions },
+          updated_at: new Date().toISOString(),
+        });
+        if (error) throw error;
+      } catch (e) {
+        setError("Couldn't save — your changes may not persist.");
+      }
+    })();
+  }, [session]);
 
   const addRoutine = () => {
     const trimmed = name.trim();
@@ -127,6 +155,13 @@ export default function App() {
     return count;
   };
 
+  if (session === undefined) {
+    return <div style={{ minHeight: "100vh", background: "#F1F4EC", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", color: "#6B7D63" }}>Loading…</div>;
+  }
+  if (!session) {
+    return <Auth />;
+  }
+
   return (
     <div style={{ minHeight: "100vh", background: "#F1F4EC", fontFamily: "'Inter', sans-serif", color: "#20301F" }}>
       <style>{`
@@ -157,6 +192,9 @@ export default function App() {
             <div style={{ fontSize: 13, fontFamily: "'JetBrains Mono', monospace", minWidth: 88, textAlign: "center" }}>{MONTHS[month].slice(0,3)} {year}</div>
             <button onClick={() => setViewDate(new Date(year, month + 1, 1))} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 8, cursor: "pointer", padding: 6 }} aria-label="Next month">
               <ChevronRight size={16} />
+            </button>
+            <button onClick={() => supabase.auth.signOut()} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 8, cursor: "pointer", padding: 6, marginLeft: 4, display: "flex" }} aria-label="Log out">
+              <LogOut size={16} />
             </button>
           </div>
         </header>
