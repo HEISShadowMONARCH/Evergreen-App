@@ -204,18 +204,6 @@ export default function App() {
             <button onClick={() => supabase.auth.signOut()} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 8, cursor: "pointer", padding: 6, marginLeft: 4, display: "flex" }} aria-label="Log out">
               <LogOut size={16} />
             </button>
-            <a
-              href={SUPPORT_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "flex", alignItems: "center", gap: 4, background: "#B0584F", color: "#fff",
-                border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer",
-                textDecoration: "none", marginLeft: 4,
-              }}
-            >
-              <Heart size={14} /> Support
-            </a>
           </div>
         </header>
 
@@ -365,6 +353,21 @@ export default function App() {
               </div>
             )}
             {error && <div style={{ marginTop: 12, fontSize: 12, color: "#B0584F" }}>{error}</div>}
+
+            <footer style={{ marginTop: 32, textAlign: "center" }}>
+              <a
+                href={SUPPORT_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, background: "#B0584F", color: "#fff",
+                  border: "none", borderRadius: 20, padding: "8px 16px", fontSize: 13, cursor: "pointer",
+                  textDecoration: "none",
+                }}
+              >
+                <Heart size={14} /> Support this app
+              </a>
+            </footer>
           </>
         )}
       </div>
