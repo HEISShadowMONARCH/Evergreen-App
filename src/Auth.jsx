@@ -9,6 +9,15 @@ export default function Auth() {
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const switchMode = () => {
+    setMode(mode === "login" ? "signup" : "login");
+    // FIX #3: Clear password (and messages) when switching modes so a
+    // failed login password doesn't pre-fill the signup form.
+    setPassword("");
+    setError("");
+    setInfo("");
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setError("");
@@ -41,9 +50,11 @@ export default function Auth() {
         <input
           type="email"
           required
+          autoFocus // FIX #4: Focus the email field immediately on mount.
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email" // FIX #1: Let browsers autofill email.
           style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
         />
         <input
@@ -53,6 +64,8 @@ export default function Auth() {
           placeholder="Password (min 6 characters)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          // FIX #2: Correct autocomplete hint per mode so password managers work.
+          autoComplete={mode === "login" ? "current-password" : "new-password"}
           style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
         />
         {error && <div style={{ fontSize: 12, color: "#B0584F" }}>{error}</div>}
@@ -66,7 +79,7 @@ export default function Auth() {
         </button>
         <button
           type="button"
-          onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); setInfo(""); }}
+          onClick={switchMode} // FIX #3: Use switchMode to also reset password.
           style={{ background: "none", border: "none", color: "#4C7A5C", fontSize: 13, cursor: "pointer", padding: 0 }}
         >
           {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
