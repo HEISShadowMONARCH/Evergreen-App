@@ -8,8 +8,6 @@ const MONTHS = ["January","February","March","April","May","June","July","August
 const DAY_LETTERS = ["S","M","T","W","T","F","S"];
 const SUPPORT_LINK = "https://selar.com/showlove/dmonarch";
 
-// FIX #1: Removed unused STORAGE_KEY constant.
-
 function fmtDate(y, m, d) {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
@@ -18,7 +16,7 @@ function daysInMonth(year, month) {
 }
 
 export default function App() {
-  const [session, setSession] = useState(undefined); // undefined = checking, null = logged out
+  const [session, setSession] = useState(undefined);
   const [routines, setRoutines] = useState([]);
   const [completions, setCompletions] = useState({});
   const [loaded, setLoaded] = useState(false);
@@ -26,19 +24,14 @@ export default function App() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [freq, setFreq] = useState("daily");
-  // FIX #2: weekday and dayOfMonth initialised as numbers and kept as numbers.
   const [weekday, setWeekday] = useState(1);
   const [dayOfMonth, setDayOfMonth] = useState(1);
-  // FIX #3: goal initialised as number and kept as number.
   const [goal, setGoal] = useState(20);
   const [error, setError] = useState("");
   const scrollRef = useRef(null);
 
-  // FIX #4: today is derived fresh each time viewDate changes so the grid
-  // never shows stale "today" if the page stays open past midnight.
   const today = useMemo(() => new Date(), [viewDate]);
 
-  // Track auth session
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -47,7 +40,6 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Load this user's data once logged in
   useEffect(() => {
     if (!session) {
       setLoaded(session === null);
@@ -73,7 +65,6 @@ export default function App() {
     })();
   }, [session]);
 
-  // Scroll to today's column once loaded
   useEffect(() => {
     if (loaded && scrollRef.current) {
       const todayCol = scrollRef.current.querySelector('[data-today="true"]');
@@ -83,7 +74,6 @@ export default function App() {
 
   const persist = useCallback((nextRoutines, nextCompletions) => {
     if (!session) return;
-    // FIX #6: Clear any previous error before each save attempt.
     setError("");
     (async () => {
       try {
@@ -102,17 +92,13 @@ export default function App() {
   const addRoutine = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    // FIX #6: Clear any previous error on a new action.
     setError("");
     const routine = {
       id: `${Date.now()}`,
       name: trimmed,
       frequency: freq,
-      // FIX #2: weekday and dayOfMonth are already numbers; Number() cast is a
-      // safety net in case something slips through.
       weekday: freq === "weekly" ? Number(weekday) : null,
       dayOfMonth: freq === "monthly" ? Number(dayOfMonth) : null,
-      // FIX #3: goal is already a number.
       goal: goal || 0,
       color: PALETTE[routines.length % PALETTE.length],
     };
@@ -240,7 +226,6 @@ export default function App() {
                     placeholder="Routine name (e.g. Workout)"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    // FIX #7: Enter key submits the form.
                     onKeyDown={(e) => e.key === "Enter" && addRoutine()}
                     style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
                   />
@@ -253,7 +238,6 @@ export default function App() {
                     {freq === "weekly" && (
                       <select
                         value={weekday}
-                        // FIX #2: Parse to Number so isDue's strict equality check works.
                         onChange={(e) => setWeekday(Number(e.target.value))}
                         style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
                       >
@@ -265,7 +249,6 @@ export default function App() {
                     {freq === "monthly" && (
                       <select
                         value={dayOfMonth}
-                        // FIX #2: Parse to Number so isDue's comparison works correctly.
                         onChange={(e) => setDayOfMonth(Number(e.target.value))}
                         style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
                       >
@@ -279,7 +262,6 @@ export default function App() {
                       min="0"
                       placeholder="Goal"
                       value={goal}
-                      // FIX #3: Parse to Number immediately so goal is always numeric.
                       onChange={(e) => setGoal(Number(e.target.value))}
                       title="Monthly goal count"
                       style={{ width: 70, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
@@ -335,10 +317,6 @@ export default function App() {
                       const rowBg = ri % 2 === 0 ? "#fff" : "#FAFBF7";
                       return (
                         <tr key={r.id} style={{ background: rowBg }}>
-                          {/*
-                            FIX #8: Replaced display:flex on <td> (invalid HTML) with an
-                            inner <div> wrapper that carries the flex layout instead.
-                          */}
                           <td style={{
                             position: "sticky", left: 0, background: rowBg, zIndex: 1,
                             padding: 0, borderBottom: "1px solid #ECEFE4",
@@ -406,6 +384,18 @@ export default function App() {
           </>
         )}
       </div>
+
+      <footer style={{ marginTop: 40, textAlign: "center", paddingBottom: 24 }}>
+        <a
+          href={SUPPORT_LINK}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontSize: 12, color: "#6B7D63", textDecoration: "none" }}
+        >
+          Support Evergreen ☕
+        </a>
+      </footer>
+
     </div>
   );
 }
