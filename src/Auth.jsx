@@ -2,21 +2,12 @@ import { useState } from "react";
 import { supabase } from "./supabaseClient";
 
 export default function Auth() {
-  const [mode, setMode] = useState("login"); // 'login' | 'signup'
+  const [mode, setMode] = useState("login"); // 'login' | 'signup' | 'reset'
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const switchMode = () => {
-    setMode(mode === "login" ? "signup" : "login");
-    // FIX #3: Clear password (and messages) when switching modes so a
-    // failed login password doesn't pre-fill the signup form.
-    setPassword("");
-    setError("");
-    setInfo("");
-  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -28,6 +19,12 @@ export default function Auth() {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         setInfo("Account created! Check your email to confirm, then log in.");
+      } else if (mode === "reset") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
+        });
+        if (error) throw error;
+        setInfo("Check your email for a password reset link.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -45,29 +42,29 @@ export default function Auth() {
       <form onSubmit={submit} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 14, padding: 28, width: "100%", maxWidth: 340, display: "flex", flexDirection: "column", gap: 12 }}>
         <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 26, margin: "0 0 4px", color: "#1B2A1A" }}>Evergreen</h1>
         <p style={{ margin: 0, fontSize: 13, color: "#6B7D63" }}>
-          {mode === "login" ? "Log in to see your routines." : "Create an account to save your routines anywhere."}
+          {mode === "login" && "Log in to see your routines."}
+          {mode === "signup" && "Create an account to save your routines anywhere."}
+          {mode === "reset" && "Enter your email and we'll send a reset link."}
         </p>
         <input
           type="email"
           required
-          autoFocus // FIX #4: Focus the email field immediately on mount.
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email" // FIX #1: Let browsers autofill email.
           style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
         />
-        <input
-          type="password"
-          required
-          minLength={6}
-          placeholder="Password (min 6 characters)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          // FIX #2: Correct autocomplete hint per mode so password managers work.
-          autoComplete={mode === "login" ? "current-password" : "new-password"}
-          style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
-        />
+        {mode !== "reset" && (
+          <input
+            type="password"
+            required
+            minLength={6}
+            placeholder="Password (min 6 characters)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
+          />
+        )}
         {error && <div style={{ fontSize: 12, color: "#B0584F" }}>{error}</div>}
         {info && <div style={{ fontSize: 12, color: "#4C7A5C" }}>{info}</div>}
         <button
@@ -75,14 +72,26 @@ export default function Auth() {
           disabled={busy}
           style={{ padding: "10px 12px", borderRadius: 8, border: "none", background: "#1B2A1A", color: "#F1F4EC", fontSize: 14, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}
         >
-          {busy ? "Please wait…" : mode === "login" ? "Log in" : "Sign up"}
+          {busy ? "Please wait…" : mode === "login" ? "Log in" : mode === "signup" ? "Sign up" : "Send reset link"}
         </button>
+        {mode === "login" && (
+          <button
+            type="button"
+            onClick={() => { setMode("reset"); setError(""); setInfo(""); }}
+            style={{ background: "none", border: "none", color: "#8B9A83", fontSize: 12, cursor: "pointer", padding: 0, textAlign: "left" }}
+          >
+            Forgot password?
+          </button>
+        )}
         <button
           type="button"
-          onClick={switchMode} // FIX #3: Use switchMode to also reset password.
+          onClick={() => {
+            setMode(mode === "login" ? "signup" : "login");
+            setError(""); setInfo("");
+          }}
           style={{ background: "none", border: "none", color: "#4C7A5C", fontSize: 13, cursor: "pointer", padding: 0 }}
         >
-          {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
+          {mode === "signup" ? "Already have an account? Log in" : mode === "reset" ? "Back to log in" : "Need an account? Sign up"}
         </button>
       </form>
     </div>
