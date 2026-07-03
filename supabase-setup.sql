@@ -19,7 +19,3 @@ create policy "Users can insert their own data"
 create policy "Users can update their own data"
   on user_data for update
   using (auth.uid() = user_id);
-
-create policy "Users can delete their own data"
-on user_data for delete
-using (auth.uid() = user_id);

@@ -48,3 +48,20 @@ npm run dev
 
 This opens the app at `http://localhost:5173`.
 
+
+## Setting up daily reminders (optional)
+
+This adds a real push notification once a day, even when the app isn't open.
+
+1. Run `supabase-push-setup.sql` in Supabase's SQL Editor (same way as the first setup script).
+2. Get your Supabase **service_role key**: Supabase → Settings → API → "service_role" (this is different from the anon key — keep it secret, never put it in client code).
+3. In Vercel → Settings → Environment Variables, add these (in addition to the two you already have):
+   - `VAPID_PUBLIC_KEY` → `BNiMwkTUOnc7cS92AAB71NU-p4K35dqE_RYW9GFlfiZuEXnQkhdILYXF7ckulCVWI69cekeSdiuWA_Br9M14_iY`
+   - `VAPID_PRIVATE_KEY` → `_3mknvS2VF3wj9NIEIzyn2aB2rhEIceYC9S6eRp43gQ` (keep this one secret too)
+   - `SUPABASE_URL` → same value as `VITE_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY` → the service_role key from Supabase
+   - `CRON_SECRET` → any random string of 16+ characters (stops randoms from triggering your reminder function)
+4. Redeploy.
+5. In the app, tap **"Turn on daily reminders"** at the bottom — your browser will ask permission to send notifications.
+
+The reminder fires once a day around 9am UTC (Vercel's free plan only allows daily, not custom times, and the exact minute can drift within that hour). To change the time, edit the `schedule` in `vercel.json` — format is `minute hour * * *` in UTC.
