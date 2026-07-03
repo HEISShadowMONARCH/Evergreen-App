@@ -4,6 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
 import ResetPassword from "./ResetPassword";
+import NotificationToggle from "./NotificationToggle";
 
 const PALETTE = ["#4C7A5C", "#C99A4B", "#8A6FB0", "#B0584F", "#3D7C93", "#7A8A3F"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -367,6 +368,7 @@ export default function App() {
               >
                 <Heart size={14} /> Support this app
               </a>
+              <NotificationToggle userId={session.user.id} />
             </footer>
           </>
         )}
