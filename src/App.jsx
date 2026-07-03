@@ -6,7 +6,7 @@ import Auth from "./Auth";
 const PALETTE = ["#4C7A5C", "#C99A4B", "#8A6FB0", "#B0584F", "#3D7C93", "#7A8A3F"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAY_LETTERS = ["S","M","T","W","T","F","S"];
-const SUPPORT_LINK = https://selar.com/showlove/dmonarch
+const SUPPORT_LINK = https://selar.com/showlove/dmonarch;
 
 // FIX #1: Removed unused STORAGE_KEY constant.
 
