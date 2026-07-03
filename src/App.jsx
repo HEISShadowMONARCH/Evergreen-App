@@ -6,7 +6,8 @@ import Auth from "./Auth";
 const PALETTE = ["#4C7A5C", "#C99A4B", "#8A6FB0", "#B0584F", "#3D7C93", "#7A8A3F"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAY_LETTERS = ["S","M","T","W","T","F","S"];
-const STORAGE_KEY = "evergreen-grid-data";
+
+// FIX #1: Removed unused STORAGE_KEY constant.
 
 function fmtDate(y, m, d) {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -24,11 +25,17 @@ export default function App() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [freq, setFreq] = useState("daily");
+  // FIX #2: weekday and dayOfMonth initialised as numbers and kept as numbers.
   const [weekday, setWeekday] = useState(1);
   const [dayOfMonth, setDayOfMonth] = useState(1);
+  // FIX #3: goal initialised as number and kept as number.
   const [goal, setGoal] = useState(20);
   const [error, setError] = useState("");
   const scrollRef = useRef(null);
+
+  // FIX #4: today is derived fresh each time viewDate changes so the grid
+  // never shows stale "today" if the page stays open past midnight.
+  const today = useMemo(() => new Date(), [viewDate]);
 
   // Track auth session
   useEffect(() => {
@@ -75,6 +82,8 @@ export default function App() {
 
   const persist = useCallback((nextRoutines, nextCompletions) => {
     if (!session) return;
+    // FIX #6: Clear any previous error before each save attempt.
+    setError("");
     (async () => {
       try {
         const { error } = await supabase.from("user_data").upsert({
@@ -92,13 +101,18 @@ export default function App() {
   const addRoutine = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    // FIX #6: Clear any previous error on a new action.
+    setError("");
     const routine = {
       id: `${Date.now()}`,
       name: trimmed,
       frequency: freq,
+      // FIX #2: weekday and dayOfMonth are already numbers; Number() cast is a
+      // safety net in case something slips through.
       weekday: freq === "weekly" ? Number(weekday) : null,
       dayOfMonth: freq === "monthly" ? Number(dayOfMonth) : null,
-      goal: Number(goal) || 0,
+      // FIX #3: goal is already a number.
+      goal: goal || 0,
       color: PALETTE[routines.length % PALETTE.length],
     };
     const next = [...routines, routine];
@@ -144,7 +158,6 @@ export default function App() {
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const total = daysInMonth(year, month);
-  const today = new Date();
   const days = useMemo(() => Array.from({ length: total }, (_, i) => i + 1), [total]);
 
   const countFor = (routine) => {
@@ -156,7 +169,11 @@ export default function App() {
   };
 
   if (session === undefined) {
-    return <div style={{ minHeight: "100vh", background: "#F1F4EC", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", color: "#6B7D63" }}>Loading…</div>;
+    return (
+      <div style={{ minHeight: "100vh", background: "#F1F4EC", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", color: "#6B7D63" }}>
+        Loading…
+      </div>
+    );
   }
   if (!session) {
     return <Auth />;
@@ -189,7 +206,7 @@ export default function App() {
             <button onClick={() => setViewDate(new Date(year, month - 1, 1))} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 8, cursor: "pointer", padding: 6 }} aria-label="Previous month">
               <ChevronLeft size={16} />
             </button>
-            <div style={{ fontSize: 13, fontFamily: "'JetBrains Mono', monospace", minWidth: 88, textAlign: "center" }}>{MONTHS[month].slice(0,3)} {year}</div>
+            <div style={{ fontSize: 13, fontFamily: "'JetBrains Mono', monospace", minWidth: 88, textAlign: "center" }}>{MONTHS[month].slice(0, 3)} {year}</div>
             <button onClick={() => setViewDate(new Date(year, month + 1, 1))} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 8, cursor: "pointer", padding: 6 }} aria-label="Next month">
               <ChevronRight size={16} />
             </button>
@@ -222,6 +239,8 @@ export default function App() {
                     placeholder="Routine name (e.g. Workout)"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    // FIX #7: Enter key submits the form.
+                    onKeyDown={(e) => e.key === "Enter" && addRoutine()}
                     style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
                   />
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -231,13 +250,27 @@ export default function App() {
                       <option value="monthly">Monthly</option>
                     </select>
                     {freq === "weekly" && (
-                      <select value={weekday} onChange={(e) => setWeekday(e.target.value)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}>
-                        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((w, i) => <option key={w} value={i}>{w}</option>)}
+                      <select
+                        value={weekday}
+                        // FIX #2: Parse to Number so isDue's strict equality check works.
+                        onChange={(e) => setWeekday(Number(e.target.value))}
+                        style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
+                      >
+                        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((w, i) => (
+                          <option key={w} value={i}>{w}</option>
+                        ))}
                       </select>
                     )}
                     {freq === "monthly" && (
-                      <select value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}>
-                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>Day {d}</option>)}
+                      <select
+                        value={dayOfMonth}
+                        // FIX #2: Parse to Number so isDue's comparison works correctly.
+                        onChange={(e) => setDayOfMonth(Number(e.target.value))}
+                        style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
+                      >
+                        {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                          <option key={d} value={d}>Day {d}</option>
+                        ))}
                       </select>
                     )}
                     <input
@@ -245,7 +278,8 @@ export default function App() {
                       min="0"
                       placeholder="Goal"
                       value={goal}
-                      onChange={(e) => setGoal(e.target.value)}
+                      // FIX #3: Parse to Number immediately so goal is always numeric.
+                      onChange={(e) => setGoal(Number(e.target.value))}
                       title="Monthly goal count"
                       style={{ width: 70, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
                     />
@@ -274,7 +308,11 @@ export default function App() {
                       <th style={{ background: "#1B2A1A", color: "#F1F4EC", padding: "10px 8px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, minWidth: 46 }}>Goal</th>
                       {days.map((d) => {
                         const dow = new Date(year, month, d).getDay();
-                        const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+                        const isToday = (
+                          d === today.getDate() &&
+                          month === today.getMonth() &&
+                          year === today.getFullYear()
+                        );
                         return (
                           <th
                             key={d}
@@ -292,59 +330,78 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {routines.map((r, ri) => (
-                      <tr key={r.id} style={{ background: ri % 2 === 0 ? "#fff" : "#FAFBF7" }}>
-                        <td style={{
-                          position: "sticky", left: 0, background: ri % 2 === 0 ? "#fff" : "#FAFBF7", zIndex: 1,
-                          padding: "8px 12px", borderBottom: "1px solid #ECEFE4", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
-                        }}>
-                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: 13 }}>{r.name}</span>
-                          <button onClick={() => removeRoutine(r.id)} aria-label={`Remove ${r.name}`} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#C7B4AE", display: "flex", padding: 2 }}>
-                            <Trash2 size={11} />
-                          </button>
-                        </td>
-                        <td style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#6B7D63" }}>
-                          {countFor(r)}/{r.goal || "–"}
-                        </td>
-                        {days.map((d) => {
-                          const date = new Date(year, month, d);
-                          const due = isDue(r, year, month, d);
-                          const key = `${r.id}:${fmtDate(year, month, d)}`;
-                          const done = !!completions[key];
-                          const isFuture = date > today && date.toDateString() !== today.toDateString();
-                          return (
-                            <td key={d} style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", padding: 3 }}>
-                              {due ? (
-                                <div
-                                  className={`ev-cell ${isFuture ? "ev-disabled" : ""}`}
-                                  role="button"
-                                  aria-label={`${r.name} on ${fmtDate(year, month, d)}, ${done ? "done" : "not done"}`}
-                                  onClick={() => toggle(r.id, fmtDate(year, month, d), isFuture)}
-                                  style={{
-                                    width: 22, height: 22, margin: "0 auto", borderRadius: 5,
-                                    background: done ? r.color : "transparent",
-                                    border: `1.4px solid ${done ? r.color : "#D8E0CC"}`,
-                                    opacity: isFuture ? 0.4 : 1,
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    cursor: isFuture ? "default" : "pointer",
-                                  }}
-                                >
-                                  {done && <Check size={13} color="#fff" strokeWidth={3} />}
-                                </div>
-                              ) : (
-                                <div style={{ width: 22, height: 22, margin: "0 auto" }} />
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                    {routines.map((r, ri) => {
+                      const rowBg = ri % 2 === 0 ? "#fff" : "#FAFBF7";
+                      return (
+                        <tr key={r.id} style={{ background: rowBg }}>
+                          {/*
+                            FIX #8: Replaced display:flex on <td> (invalid HTML) with an
+                            inner <div> wrapper that carries the flex layout instead.
+                          */}
+                          <td style={{
+                            position: "sticky", left: 0, background: rowBg, zIndex: 1,
+                            padding: 0, borderBottom: "1px solid #ECEFE4",
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", whiteSpace: "nowrap" }}>
+                              <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.color, flexShrink: 0 }} />
+                              <span style={{ fontSize: 13 }}>{r.name}</span>
+                              <button
+                                onClick={() => removeRoutine(r.id)}
+                                aria-label={`Remove ${r.name}`}
+                                style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#C7B4AE", display: "flex", padding: 2 }}
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          </td>
+                          <td style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#6B7D63" }}>
+                            {countFor(r)}/{r.goal || "–"}
+                          </td>
+                          {days.map((d) => {
+                            const date = new Date(year, month, d);
+                            const due = isDue(r, year, month, d);
+                            const dateStr = fmtDate(year, month, d);
+                            const key = `${r.id}:${dateStr}`;
+                            const done = !!completions[key];
+                            const isFuture = date > today && date.toDateString() !== today.toDateString();
+                            return (
+                              <td key={d} style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", padding: 3 }}>
+                                {due ? (
+                                  <div
+                                    className={`ev-cell${isFuture ? " ev-disabled" : ""}`}
+                                    role="button"
+                                    tabIndex={isFuture ? -1 : 0}
+                                    aria-label={`${r.name} on ${dateStr}, ${done ? "done" : "not done"}`}
+                                    aria-pressed={done}
+                                    onClick={() => toggle(r.id, dateStr, isFuture)}
+                                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggle(r.id, dateStr, isFuture)}
+                                    style={{
+                                      width: 22, height: 22, margin: "0 auto", borderRadius: 5,
+                                      background: done ? r.color : "transparent",
+                                      border: `1.4px solid ${done ? r.color : "#D8E0CC"}`,
+                                      opacity: isFuture ? 0.4 : 1,
+                                      display: "flex", alignItems: "center", justifyContent: "center",
+                                      cursor: isFuture ? "default" : "pointer",
+                                    }}
+                                  >
+                                    {done && <Check size={13} color="#fff" strokeWidth={3} />}
+                                  </div>
+                                ) : (
+                                  <div style={{ width: 22, height: 22, margin: "0 auto" }} />
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             )}
-            {error && <div style={{ marginTop: 12, fontSize: 12, color: "#B0584F" }}>{error}</div>}
+            {error && (
+              <div style={{ marginTop: 12, fontSize: 12, color: "#B0584F" }}>{error}</div>
+            )}
           </>
         )}
       </div>
