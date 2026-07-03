@@ -1,6 +1,14 @@
 # Evergreen — Routine Tracker
 
-A simple habit/routine grid tracker built with React + Vite, with accounts via Supabase so your data follows you across browsers and devices.
+A simple habit/routine grid tracker built with React + Vite, with accounts via Supabase so your data follows you across browsers and devices. It's also an installable PWA — people can add it to their phone's home screen like a real app, no app store needed.
+
+## Installing it like an app (free, no Play Store)
+
+Once deployed, anyone visiting the site can:
+- **Android (Chrome):** tap the **⋮** menu → **"Add to Home Screen"** / **"Install app"**
+- **iPhone (Safari):** tap the **Share** icon → **"Add to Home Screen"**
+
+It'll show up with the Evergreen icon and open full-screen like a native app.
 
 ## One-time setup: Supabase
 
