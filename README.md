@@ -1,6 +1,13 @@
 # Evergreen — Routine Tracker
 
-A simple habit/routine grid tracker built with React + Vite. Data is saved in your browser's local storage, so it stays on whichever device/browser you use it in.
+A simple habit/routine grid tracker built with React + Vite, with accounts via Supabase so your data follows you across browsers and devices.
+
+## One-time setup: Supabase
+
+1. Create a free project at https://supabase.com.
+2. In the SQL Editor, run the contents of `supabase-setup.sql` (included in this folder) — this creates the table that stores each user's routines.
+3. In your Supabase project, go to **Settings → API**. Copy the **Project URL** and the **anon public** key.
+4. You'll paste these into Vercel as environment variables (see below) — no need to put them in a file for deployment.
 
 ## Deploy for free (no coding experience needed)
 
@@ -14,14 +21,17 @@ A simple habit/routine grid tracker built with React + Vite. Data is saved in yo
 1. Go to https://vercel.com and sign up using your GitHub account (free).
 2. Click "Add New" → "Project".
 3. Select your `evergreen-tracker` repo and click "Import".
-4. Vercel auto-detects Vite — just click "Deploy" and wait about a minute.
-5. You'll get a free link like `evergreen-tracker.vercel.app` that you (or anyone) can open on any device.
+4. Before deploying, expand **"Environment Variables"** and add:
+   - `VITE_SUPABASE_URL` → your Supabase Project URL
+   - `VITE_SUPABASE_ANON_KEY` → your Supabase anon public key
+5. Click "Deploy" and wait about a minute.
+6. You'll get a free link like `evergreen-tracker.vercel.app`. Anyone who visits can sign up for their own account and see only their own routines.
 
 Any time you upload changed files to GitHub, Vercel automatically redeploys the site — no extra steps.
 
 ## Running it on your own computer (optional)
 
-If you want to preview it locally before deploying, you'll need [Node.js](https://nodejs.org) installed, then:
+If you want to preview it locally, you'll need [Node.js](https://nodejs.org) installed. Copy `.env.example` to `.env` and fill in your real Supabase values, then:
 
 ```
 npm install
@@ -29,3 +39,4 @@ npm run dev
 ```
 
 This opens the app at `http://localhost:5173`.
+
