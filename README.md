@@ -48,20 +48,25 @@ npm run dev
 
 This opens the app at `http://localhost:5173`.
 
+## Setting up personalized reminders (optional)
 
-## Setting up daily reminders (optional)
+Each user picks their own reminder time(s) and timezone — up to twice a day.
 
-This adds a real push notification once a day, even when the app isn't open.
-
-1. Run `supabase-push-setup.sql` in Supabase's SQL Editor (same way as the first setup script).
-2. Get your Supabase **service_role key**: Supabase → Settings → API → "service_role" (this is different from the anon key — keep it secret, never put it in client code).
-3. In Vercel → Settings → Environment Variables, add these (in addition to the two you already have):
+1. Run `supabase-push-setup.sql`, then `supabase-personalized-reminders.sql`, in Supabase's SQL Editor, in that order.
+2. Get your Supabase **service_role key**: Supabase → Settings → API → "service_role" (different from the anon key — keep it secret, never put it in client code).
+3. In Vercel → Settings → Environment Variables, add:
    - `VAPID_PUBLIC_KEY` → `BNiMwkTUOnc7cS92AAB71NU-p4K35dqE_RYW9GFlfiZuEXnQkhdILYXF7ckulCVWI69cekeSdiuWA_Br9M14_iY`
-   - `VAPID_PRIVATE_KEY` → `_3mknvS2VF3wj9NIEIzyn2aB2rhEIceYC9S6eRp43gQ` (keep this one secret too)
+   - `VAPID_PRIVATE_KEY` → `_3mknvS2VF3wj9NIEIzyn2aB2rhEIceYC9S6eRp43gQ` (keep secret)
    - `SUPABASE_URL` → same value as `VITE_SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY` → the service_role key from Supabase
-   - `CRON_SECRET` → any random string of 16+ characters (stops randoms from triggering your reminder function)
-4. Redeploy.
-5. In the app, tap **"Turn on daily reminders"** at the bottom — your browser will ask permission to send notifications.
+   - `SUPABASE_SERVICE_ROLE_KEY` → the service_role key from step 2
+   - `CRON_SECRET` → any random string of 16+ characters, e.g. `ev3rgr33n-9x7Lp2qR4kT8mNw1`
+4. Redeploy, then copy your deployed function's full URL, e.g. `https://your-app.vercel.app/api/send-reminders`.
+5. On GitHub, go to your repo → **Settings → Secrets and variables → Actions → New repository secret**, and add:
+   - `REMINDER_URL` → the URL from step 4
+   - `CRON_SECRET` → same value you used in Vercel
+6. Commit the new `.github/workflows/send-reminders.yml` file (included here) — GitHub will now ping your function every 15 minutes for free, and it only actually sends a notification to a user when their local time matches what they picked.
+7. In the app, tap **"Turn on daily reminders"**, pick a timezone, one or two times, and save.
 
-The reminder fires once a day around 9am UTC (Vercel's free plan only allows daily, not custom times, and the exact minute can drift within that hour). To change the time, edit the `schedule` in `vercel.json` — format is `minute hour * * *` in UTC.
+Why GitHub Actions instead of Vercel's own cron: Vercel's free plan only allows a cron to run once a day, which can't support "everyone's own local time." GitHub Actions' free scheduled workflows can run every 15 minutes, which is what makes personalized timing possible without paying for anything.
+
+Note: GitHub's scheduler isn't perfectly precise under load and can drift by a few minutes — reminders may land a little after the exact minute chosen, not before.
