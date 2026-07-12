@@ -327,9 +327,11 @@ export default function App() {
                     <tr>
                       <th style={{
                         position: "sticky", left: 0, background: "#1B2A1A", color: "#F1F4EC", zIndex: 2,
-                        textAlign: "left", padding: "10px 12px", fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 13, minWidth: 150,
+                        textAlign: "left", padding: "10px 12px", fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 13, minWidth: 110,
                       }}>Routine</th>
-                      <th style={{ background: "#1B2A1A", color: "#F1F4EC", padding: "10px 8px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, minWidth: 46 }}>Goal</th>
+                      <th style={{ background: "#1B2A1A", color: "#F1F4EC", padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, minWidth: 54 }}>Freq</th>
+                      <th style={{ background: "#1B2A1A", color: "#F1F4EC", padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, minWidth: 44 }}>Done</th>
+                      <th style={{ background: "#1B2A1A", color: "#F1F4EC", padding: "10px 8px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, minWidth: 68 }}>Counter</th>
                       {days.map((d) => {
                         const dow = new Date(year, month, d).getDay();
                         const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
@@ -354,16 +356,30 @@ export default function App() {
                       <tr key={r.id} style={{ background: ri % 2 === 0 ? "#fff" : "#FAFBF7" }}>
                         <td style={{
                           position: "sticky", left: 0, background: ri % 2 === 0 ? "#fff" : "#FAFBF7", zIndex: 1,
-                          padding: "8px 12px", borderBottom: "1px solid #ECEFE4", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+                          padding: "8px 12px", borderBottom: "1px solid #ECEFE4", display: "flex", alignItems: "center", gap: 6,
                         }}>
                           <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: 13 }}>{r.name}</span>
-                          <button onClick={() => removeRoutine(r.id)} aria-label={`Remove ${r.name}`} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#C7B4AE", display: "flex", padding: 2 }}>
+                          <span
+                            title={r.name}
+                            style={{ fontSize: 13, maxWidth: 88, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                          >
+                            {r.name}
+                          </span>
+                          <button onClick={() => removeRoutine(r.id)} aria-label={`Remove ${r.name}`} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#C7B4AE", display: "flex", padding: 2, flexShrink: 0 }}>
                             <Trash2 size={11} />
                           </button>
                         </td>
+                        <td
+                          title={r.frequency === "weekly" ? `Every ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][r.weekday]}` : r.frequency === "monthly" ? `Day ${r.dayOfMonth} of each month` : "Every day"}
+                          style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7D63" }}
+                        >
+                          {r.frequency === "weekly" ? "Wkly" : r.frequency === "monthly" ? "Mthly" : "Daily"}
+                        </td>
                         <td style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#6B7D63" }}>
-                          {countFor(r)}/{r.goal || "–"}
+                          {countFor(r)}
+                        </td>
+                        <td style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#4C7A5C", fontWeight: 600 }}>
+                          {r.goal || "–"}
                         </td>
                         {days.map((d) => {
                           const date = new Date(year, month, d);

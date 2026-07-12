@@ -181,7 +181,7 @@ export default function NotificationToggle({ userId }) {
     saved.timezone !== timezone;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginTop: 12, width: "100%", maxWidth: 300 }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginTop: 12, marginLeft: "auto", marginRight: "auto", width: "100%", maxWidth: 300 }}>
       {status === "on" && (
         <div style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 10, padding: 12, width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
           <label style={{ fontSize: 11, color: "#6B7D63", display: "flex", flexDirection: "column", gap: 3 }}>
@@ -239,7 +239,7 @@ export default function NotificationToggle({ userId }) {
         onClick={status === "on" ? disable : enable}
         disabled={status === "busy"}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
           background: status === "on" ? "#4C7A5C" : "#fff",
           color: status === "on" ? "#fff" : "#1B2A1A",
           border: "1px solid #E1E7D9", borderRadius: 20, padding: "6px 14px", fontSize: 12,
