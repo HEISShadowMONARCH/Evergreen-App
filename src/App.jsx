@@ -180,6 +180,8 @@ export default function App() {
     <div style={{ minHeight: "100vh", background: "#F1F4EC", fontFamily: "'Inter', sans-serif", color: "#20301F" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+        * { box-sizing: border-box; min-width: 0; }
+        html, body { overflow-x: hidden; max-width: 100%; }
         .ev-btn { transition: transform .12s ease; }
         .ev-btn:active { transform: scale(0.96); }
         .ev-cell { transition: all .12s ease; cursor: pointer; }
@@ -187,10 +189,16 @@ export default function App() {
         .ev-scroll::-webkit-scrollbar { height: 6px; }
         .ev-scroll::-webkit-scrollbar-thumb { background: #D3DCC5; border-radius: 3px; }
         input:focus, select:focus, button:focus-visible { outline: 2px solid #4C7A5C; outline-offset: 2px; }
+        @media (min-width: 700px) {
+          .ev-stat-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        @media (max-width: 699px) {
+          .ev-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
       `}</style>
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 14px 60px" }}>
-        <header style={{ marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 14px 60px", overflowX: "hidden" }}>
+        <header style={{ marginBottom: 18, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 1.5, color: "#6B7D63", textTransform: "uppercase" }}>
               Routine grid

@@ -36,7 +36,7 @@ export default function Dashboard({ routines, completions, year, month, monthLab
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* Summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+      <div className="ev-stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
         <StatCard label={`${monthLabel} completion`} value={`${stats.rate}%`} sub={`${stats.totalDone}/${stats.totalDue} done`} />
         <StatCard
           label="Best day"
@@ -122,7 +122,7 @@ export default function Dashboard({ routines, completions, year, month, monthLab
 
 function StatCard({ label, value, sub, truncate }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
+    <div style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 10, padding: "10px 8px", textAlign: "center", minWidth: 0, overflow: "hidden" }}>
       <div style={{ fontSize: 9, color: "#8B9A83", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 }}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 600, color: "#1B2A1A", whiteSpace: truncate ? "nowrap" : "normal", overflow: truncate ? "hidden" : "visible", textOverflow: truncate ? "ellipsis" : "clip" }}>
         {value}
