@@ -142,8 +142,8 @@ export default function App() {
     return false;
   };
 
-  const toggle = (routineId, dateStr, isFuture) => {
-    if (isFuture) return;
+  const toggle = (routineId, dateStr, locked) => {
+    if (locked) return;
     const key = `${routineId}:${dateStr}`;
     const next = { ...completions };
     if (next[key]) delete next[key];
@@ -326,12 +326,22 @@ export default function App() {
                   <thead>
                     <tr>
                       <th style={{
-                        position: "sticky", left: 0, background: "#1B2A1A", color: "#F1F4EC", zIndex: 2,
-                        textAlign: "left", padding: "10px 12px", fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 13, minWidth: 110,
+                        position: "sticky", left: 0, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3,
+                        textAlign: "left", padding: "10px 12px", fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 13, width: 110, minWidth: 110, maxWidth: 110,
                       }}>Routine</th>
-                      <th style={{ background: "#1B2A1A", color: "#F1F4EC", padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, minWidth: 54 }}>Freq</th>
-                      <th style={{ background: "#1B2A1A", color: "#F1F4EC", padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, minWidth: 44 }}>Done</th>
-                      <th style={{ background: "#1B2A1A", color: "#F1F4EC", padding: "10px 8px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, minWidth: 68 }}>Counter</th>
+                      <th style={{
+                        position: "sticky", left: 110, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3,
+                        padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, width: 54, minWidth: 54, maxWidth: 54,
+                      }}>Freq</th>
+                      <th style={{
+                        position: "sticky", left: 164, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3,
+                        padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, width: 44, minWidth: 44, maxWidth: 44,
+                      }}>Done</th>
+                      <th style={{
+                        position: "sticky", left: 208, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3,
+                        padding: "10px 8px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, width: 68, minWidth: 68, maxWidth: 68,
+                        boxShadow: "3px 0 6px -2px rgba(0,0,0,0.15)",
+                      }}>Counter</th>
                       {days.map((d) => {
                         const dow = new Date(year, month, d).getDay();
                         const isToday = d === today.getDate() && month === today.getMonth() && year === today.getFullYear();
@@ -371,14 +381,24 @@ export default function App() {
                         </td>
                         <td
                           title={r.frequency === "weekly" ? `Every ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][r.weekday]}` : r.frequency === "monthly" ? `Day ${r.dayOfMonth} of each month` : "Every day"}
-                          style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7D63" }}
+                          style={{
+                            position: "sticky", left: 110, background: ri % 2 === 0 ? "#fff" : "#FAFBF7", zIndex: 1,
+                            textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7D63",
+                          }}
                         >
                           {r.frequency === "weekly" ? "Wkly" : r.frequency === "monthly" ? "Mthly" : "Daily"}
                         </td>
-                        <td style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#6B7D63" }}>
+                        <td style={{
+                          position: "sticky", left: 164, background: ri % 2 === 0 ? "#fff" : "#FAFBF7", zIndex: 1,
+                          textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#6B7D63",
+                        }}>
                           {countFor(r)}
                         </td>
-                        <td style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#4C7A5C", fontWeight: 600 }}>
+                        <td style={{
+                          position: "sticky", left: 208, background: ri % 2 === 0 ? "#fff" : "#FAFBF7", zIndex: 1,
+                          textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#4C7A5C", fontWeight: 600,
+                          boxShadow: "3px 0 6px -2px rgba(0,0,0,0.08)",
+                        }}>
                           {r.goal || "–"}
                         </td>
                         {days.map((d) => {
@@ -386,22 +406,23 @@ export default function App() {
                           const due = isDue(r, year, month, d);
                           const key = `${r.id}:${fmtDate(year, month, d)}`;
                           const done = !!completions[key];
-                          const isFuture = date > today && date.toDateString() !== today.toDateString();
+                          const isToday = date.toDateString() === today.toDateString();
+                          const locked = !isToday;
                           return (
                             <td key={d} style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", padding: 3 }}>
                               {due ? (
                                 <div
-                                  className={`ev-cell ${isFuture ? "ev-disabled" : ""}`}
+                                  className={`ev-cell ${locked ? "ev-disabled" : ""}`}
                                   role="button"
-                                  aria-label={`${r.name} on ${fmtDate(year, month, d)}, ${done ? "done" : "not done"}`}
-                                  onClick={() => toggle(r.id, fmtDate(year, month, d), isFuture)}
+                                  aria-label={`${r.name} on ${fmtDate(year, month, d)}, ${done ? "done" : "not done"}${locked ? " (only today can be marked)" : ""}`}
+                                  onClick={() => toggle(r.id, fmtDate(year, month, d), locked)}
                                   style={{
                                     width: 22, height: 22, margin: "0 auto", borderRadius: 5,
                                     background: done ? r.color : "transparent",
                                     border: `1.4px solid ${done ? r.color : "#D8E0CC"}`,
-                                    opacity: isFuture ? 0.4 : 1,
+                                    opacity: locked ? (done ? 0.6 : 0.35) : 1,
                                     display: "flex", alignItems: "center", justifyContent: "center",
-                                    cursor: isFuture ? "default" : "pointer",
+                                    cursor: locked ? "default" : "pointer",
                                   }}
                                 >
                                   {done && <Check size={13} color="#fff" strokeWidth={3} />}
