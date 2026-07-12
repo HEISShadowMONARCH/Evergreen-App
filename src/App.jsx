@@ -5,6 +5,7 @@ import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
 import ResetPassword from "./ResetPassword";
 import NotificationToggle from "./NotificationToggle";
+import Dashboard from "./Dashboard";
 
 const PALETTE = ["#4C7A5C", "#C99A4B", "#8A6FB0", "#B0584F", "#3D7C93", "#7A8A3F"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -32,6 +33,8 @@ export default function App() {
   const [weekday, setWeekday] = useState(1);
   const [dayOfMonth, setDayOfMonth] = useState(1);
   const [goal, setGoal] = useState(20);
+  const [annualGoal, setAnnualGoal] = useState("");
+  const [view, setView] = useState("grid"); // 'grid' | 'dashboard'
   const [error, setError] = useState("");
   const scrollRef = useRef(null);
 
@@ -105,6 +108,7 @@ export default function App() {
       weekday: freq === "weekly" ? Number(weekday) : null,
       dayOfMonth: freq === "monthly" ? Number(dayOfMonth) : null,
       goal: Number(goal) || 0,
+      annualGoal: Number(annualGoal) || 0,
       color: PALETTE[routines.length % PALETTE.length],
     };
     const next = [...routines, routine];
@@ -113,6 +117,7 @@ export default function App() {
     setName("");
     setFreq("daily");
     setGoal(20);
+    setAnnualGoal("");
     setShowForm(false);
   };
 
@@ -258,6 +263,15 @@ export default function App() {
                       title="Monthly goal count"
                       style={{ width: 70, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
                     />
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="Annual goal"
+                      value={annualGoal}
+                      onChange={(e) => setAnnualGoal(e.target.value)}
+                      title="Optional: annual goal count"
+                      style={{ width: 90, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
+                    />
                   </div>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <button onClick={() => setShowForm(false)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #D8E0CC", background: "#fff", fontSize: 13, cursor: "pointer" }}>Cancel</button>
@@ -267,7 +281,34 @@ export default function App() {
               )}
             </div>
 
-            {routines.length === 0 ? (
+            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+              <button
+                onClick={() => setView("grid")}
+                style={{
+                  flex: 1, padding: "7px 0", borderRadius: 8, fontSize: 13, cursor: "pointer",
+                  border: "1px solid #E1E7D9",
+                  background: view === "grid" ? "#1B2A1A" : "#fff",
+                  color: view === "grid" ? "#F1F4EC" : "#1B2A1A",
+                }}
+              >
+                Grid
+              </button>
+              <button
+                onClick={() => setView("dashboard")}
+                style={{
+                  flex: 1, padding: "7px 0", borderRadius: 8, fontSize: 13, cursor: "pointer",
+                  border: "1px solid #E1E7D9",
+                  background: view === "dashboard" ? "#1B2A1A" : "#fff",
+                  color: view === "dashboard" ? "#F1F4EC" : "#1B2A1A",
+                }}
+              >
+                Dashboard
+              </button>
+            </div>
+
+            {view === "dashboard" ? (
+              <Dashboard routines={routines} completions={completions} year={year} month={month} monthLabel={MONTHS[month]} />
+            ) : routines.length === 0 ? (
               <div style={{ fontSize: 13, color: "#8B9A83", padding: "20px 0" }}>
                 Add a routine above to start filling in the grid.
               </div>
