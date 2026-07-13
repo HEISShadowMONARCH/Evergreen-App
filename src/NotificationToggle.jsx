@@ -124,11 +124,20 @@ export default function NotificationToggle({ userId }) {
         setStatus("off");
         return;
       }
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-      });
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Service worker took too long to respond. Try reloading the page.")), 10000)),
+      ]);
+      // Reuse an existing subscription if one's already there (common after a
+      // retry) instead of calling subscribe() again, which can silently fail
+      // in some browsers if a subscription already exists.
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      }
       await save(sub);
       setStatus("on");
     } catch (err) {
@@ -269,7 +278,14 @@ export default function NotificationToggle({ userId }) {
           {status === "busy" ? "Working…" : "Turn on daily reminders"}
         </button>
       )}
-      {error && <div style={{ fontSize: 11, color: "#B0584F", textAlign: "center", maxWidth: 260 }}>{error}</div>}
+      {error && (
+        <div style={{
+          fontSize: 12, color: "#B0584F", textAlign: "center", maxWidth: 280,
+          background: "#FBEDEB", border: "1px solid #E8C4BE", borderRadius: 8, padding: "8px 10px",
+        }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }
