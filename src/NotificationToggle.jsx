@@ -235,20 +235,40 @@ export default function NotificationToggle({ userId }) {
         </div>
       )}
 
-      <button
-        onClick={status === "on" ? disable : enable}
-        disabled={status === "busy"}
-        style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-          background: status === "on" ? "#4C7A5C" : "#fff",
-          color: status === "on" ? "#fff" : "#1B2A1A",
-          border: "1px solid #E1E7D9", borderRadius: 20, padding: "6px 14px", fontSize: 12,
-          cursor: status === "busy" ? "default" : "pointer",
-        }}
-      >
-        {status === "on" ? <Bell size={13} /> : <BellOff size={13} />}
-        {status === "busy" ? "Working…" : status === "on" ? "Reminders on" : "Turn on daily reminders"}
-      </button>
+      {status === "on" ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          <div
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+              background: "#4C7A5C", color: "#fff",
+              border: "1px solid #E1E7D9", borderRadius: 20, padding: "6px 14px", fontSize: 12,
+            }}
+          >
+            <Bell size={13} /> Reminders on
+          </div>
+          <button
+            onClick={disable}
+            disabled={status === "busy"}
+            style={{ background: "none", border: "none", color: "#B0584F", fontSize: 11, cursor: status === "busy" ? "default" : "pointer", padding: 2, textDecoration: "underline" }}
+          >
+            {status === "busy" ? "Working…" : "Turn off reminders"}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={enable}
+          disabled={status === "busy"}
+          style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+            background: "#fff", color: "#1B2A1A",
+            border: "1px solid #E1E7D9", borderRadius: 20, padding: "6px 14px", fontSize: 12,
+            cursor: status === "busy" ? "default" : "pointer",
+          }}
+        >
+          <BellOff size={13} />
+          {status === "busy" ? "Working…" : "Turn on daily reminders"}
+        </button>
+      )}
       {error && <div style={{ fontSize: 11, color: "#B0584F", textAlign: "center", maxWidth: 260 }}>{error}</div>}
     </div>
   );
