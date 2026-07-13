@@ -12,5 +12,13 @@ jobs:
     steps:
       - name: Call the reminder function
         run: |
-          curl -f -X GET "${{ secrets.REMINDER_URL }}" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          http_code=$(curl -s -o response.json -w "%{http_code}" -X GET "${{ secrets.REMINDER_URL }}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          echo "HTTP status: $http_code"
+          echo "Response body:"
+          cat response.json
+          echo ""
+          if [ "$http_code" -ge 400 ]; then
+            echo "::error::Reminder endpoint returned HTTP $http_code"
+            exit 1
+          fi
