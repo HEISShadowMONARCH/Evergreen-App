@@ -410,20 +410,20 @@ export default function App() {
                           const key = `${r.id}:${fmtDate(year, month, d)}`;
                           const done = !!completions[key];
                           const isToday = date.toDateString() === today.toDateString();
-                          const locked = !isToday;
+                          const locked = date > today && !isToday;
                           return (
                             <td key={d} style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", padding: 3 }}>
                               {due ? (
                                 <div
                                   className={`ev-cell ${locked ? "ev-disabled" : ""}`}
                                   role="button"
-                                  aria-label={`${r.name} on ${fmtDate(year, month, d)}, ${done ? "done" : "not done"}${locked ? " (only today can be marked)" : ""}`}
+                                  aria-label={`${r.name} on ${fmtDate(year, month, d)}, ${done ? "done" : "not done"}`}
                                   onClick={() => toggle(r.id, fmtDate(year, month, d), locked)}
                                   style={{
                                     width: 22, height: 22, margin: "0 auto", borderRadius: 5,
                                     background: done ? r.color : "transparent",
                                     border: `1.4px solid ${done ? r.color : "#D8E0CC"}`,
-                                    opacity: locked ? (done ? 0.6 : 0.35) : 1,
+                                    opacity: locked ? 0.4 : 1,
                                     display: "flex", alignItems: "center", justifyContent: "center",
                                     cursor: locked ? "default" : "pointer",
                                   }}
