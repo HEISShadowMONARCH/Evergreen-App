@@ -35,6 +35,7 @@ const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UT
 
 export default function NotificationToggle({ userId }) {
   const [status, setStatus] = useState("checking");
+  const [panelOpen, setPanelOpen] = useState(false);
   const [error, setError] = useState("");
   const [timezone, setTimezone] = useState(detectedTimezone);
   const [time1, setTime1] = useState("09:00");
@@ -140,6 +141,7 @@ export default function NotificationToggle({ userId }) {
       }
       await save(sub);
       setStatus("on");
+      setPanelOpen(true);
     } catch (err) {
       setError(err.message || "Couldn't enable notifications.");
       setStatus("off");
@@ -158,6 +160,7 @@ export default function NotificationToggle({ userId }) {
       }
       await save(sub);
       setStatus("on");
+      setPanelOpen(false);
     } catch (err) {
       setError(err.message || "Couldn't update reminder settings.");
       setStatus("on");
@@ -191,7 +194,7 @@ export default function NotificationToggle({ userId }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginTop: 12, marginLeft: "auto", marginRight: "auto", width: "100%", maxWidth: 300 }}>
-      {status === "on" && (
+      {status === "on" && panelOpen && (
         <div style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 10, padding: 12, width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
           <label style={{ fontSize: 11, color: "#6B7D63", display: "flex", flexDirection: "column", gap: 3 }}>
             Timezone
@@ -246,15 +249,16 @@ export default function NotificationToggle({ userId }) {
 
       {status === "on" ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <div
+          <button
+            onClick={() => setPanelOpen((o) => !o)}
             style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
               background: "#4C7A5C", color: "#fff",
-              border: "1px solid #E1E7D9", borderRadius: 20, padding: "6px 14px", fontSize: 12,
+              border: "1px solid #E1E7D9", borderRadius: 20, padding: "6px 14px", fontSize: 12, cursor: "pointer",
             }}
           >
-            <Bell size={13} /> Reminders on
-          </div>
+            <Bell size={13} /> Reminders on{panelOpen ? "" : " · edit"}
+          </button>
           <button
             onClick={disable}
             disabled={status === "busy"}
