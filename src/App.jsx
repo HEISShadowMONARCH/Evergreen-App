@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Plus, ChevronLeft, ChevronRight, Check, Trash2, LogOut, Heart } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Check, Trash2, LogOut, Heart, HelpCircle, WifiOff, RefreshCw } from "lucide-react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { supabase } from "./supabaseClient";
 import Auth from "./Auth";
 import ResetPassword from "./ResetPassword";
 import NotificationToggle from "./NotificationToggle";
 import Dashboard from "./Dashboard";
+import Onboarding from "./Onboarding";
 
 const PALETTE = ["#4C7A5C", "#C99A4B", "#8A6FB0", "#B0584F", "#3D7C93", "#7A8A3F"];
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAY_LETTERS = ["S","M","T","W","T","F","S"];
-const STORAGE_KEY = "evergreen-grid-data";
 const SUPPORT_LINK = "https://selar.com/showlove/dmonarch";
 
 function fmtDate(y, m, d) {
@@ -18,6 +18,12 @@ function fmtDate(y, m, d) {
 }
 function daysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
+}
+function cacheKey(userId) {
+  return `evergreen-cache-${userId}`;
+}
+function onboardedKey(userId) {
+  return `evergreen-onboarded-${userId}`;
 }
 
 export default function App() {
@@ -36,7 +42,13 @@ export default function App() {
   const [annualGoal, setAnnualGoal] = useState("");
   const [view, setView] = useState("grid"); // 'grid' | 'dashboard'
   const [error, setError] = useState("");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [syncStatus, setSyncStatus] = useState("synced"); // 'synced' | 'offline' | 'syncing' | 'error'
   const scrollRef = useRef(null);
+  const latestData = useRef({ routines: [], completions: {} });
+
+  const today = useMemo(() => new Date(), [viewDate]);
 
   // Track auth session
   useEffect(() => {
@@ -48,13 +60,27 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Load this user's data once logged in
+  // Track browser online/offline status
+  useEffect(() => {
+    const goOnline = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
+
+  // Load this user's data once logged in — from Supabase if reachable,
+  // falling back to the last locally cached copy if offline.
   useEffect(() => {
     if (!session) {
       setLoaded(session === null);
       return;
     }
     (async () => {
+      const key = cacheKey(session.user.id);
       try {
         const { data, error } = await supabase
           .from("user_data")
@@ -62,19 +88,49 @@ export default function App() {
           .eq("user_id", session.user.id)
           .maybeSingle();
         if (error) throw error;
-        if (data && data.data) {
-          setRoutines(data.data.routines || []);
-          setCompletions(data.data.completions || {});
+        const nextRoutines = (data && data.data && data.data.routines) || [];
+        const nextCompletions = (data && data.data && data.data.completions) || {};
+        setRoutines(nextRoutines);
+        setCompletions(nextCompletions);
+        try {
+          localStorage.setItem(key, JSON.stringify({ routines: nextRoutines, completions: nextCompletions }));
+        } catch (e) {
+          // cache write failure is non-fatal
         }
+        setSyncStatus("synced");
       } catch (e) {
-        setError("Couldn't load your saved data.");
+        // Likely offline — fall back to local cache so the app still works.
+        try {
+          const cached = localStorage.getItem(key);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setRoutines(parsed.routines || []);
+            setCompletions(parsed.completions || {});
+            setSyncStatus("offline");
+          } else {
+            setError("Couldn't load your saved data.");
+          }
+        } catch (e2) {
+          setError("Couldn't load your saved data.");
+        }
       } finally {
         setLoaded(true);
       }
     })();
   }, [session]);
 
-  // Scroll to today's column once loaded
+  // Show the onboarding tutorial once, the first time a user logs in.
+  useEffect(() => {
+    if (session && loaded) {
+      try {
+        const seen = localStorage.getItem(onboardedKey(session.user.id));
+        if (!seen) setShowOnboarding(true);
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [session, loaded]);
+
   useEffect(() => {
     if (loaded && scrollRef.current) {
       const todayCol = scrollRef.current.querySelector('[data-today="true"]');
@@ -82,8 +138,21 @@ export default function App() {
     }
   }, [loaded, viewDate]);
 
+  // Keep a ref of the latest data so the "back online" listener can flush
+  // whatever the user has locally, without stale closures.
+  useEffect(() => {
+    latestData.current = { routines, completions };
+  }, [routines, completions]);
+
   const persist = useCallback((nextRoutines, nextCompletions) => {
     if (!session) return;
+    const key = cacheKey(session.user.id);
+    try {
+      localStorage.setItem(key, JSON.stringify({ routines: nextRoutines, completions: nextCompletions }));
+    } catch (e) {
+      // non-fatal
+    }
+    setSyncStatus("syncing");
     (async () => {
       try {
         const { error } = await supabase.from("user_data").upsert({
@@ -92,11 +161,22 @@ export default function App() {
           updated_at: new Date().toISOString(),
         });
         if (error) throw error;
+        setSyncStatus("synced");
       } catch (e) {
-        setError("Couldn't save — your changes may not persist.");
+        // Offline or request failed — data is safe in localStorage and will
+        // sync automatically once the connection returns.
+        setSyncStatus("offline");
       }
     })();
   }, [session]);
+
+  // When the browser comes back online, push whatever's currently local.
+  useEffect(() => {
+    if (isOnline && session && syncStatus === "offline") {
+      persist(latestData.current.routines, latestData.current.completions);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
 
   const addRoutine = () => {
     const trimmed = name.trim();
@@ -155,7 +235,6 @@ export default function App() {
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const total = daysInMonth(year, month);
-  const today = new Date();
   const days = useMemo(() => Array.from({ length: total }, (_, i) => i + 1), [total]);
 
   const countFor = (routine) => {
@@ -166,8 +245,23 @@ export default function App() {
     return count;
   };
 
+  const finishOnboarding = () => {
+    setShowOnboarding(false);
+    if (session) {
+      try {
+        localStorage.setItem(onboardedKey(session.user.id), "1");
+      } catch (e) {
+        // ignore
+      }
+    }
+  };
+
   if (session === undefined) {
-    return <div style={{ minHeight: "100vh", background: "#F1F4EC", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", color: "#6B7D63" }}>Loading…</div>;
+    return (
+      <div style={{ minHeight: "100vh", background: "#F1F4EC", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", color: "#6B7D63" }}>
+        Loading…
+      </div>
+    );
   }
   if (recovering) {
     return <ResetPassword onDone={() => setRecovering(false)} />;
@@ -197,6 +291,8 @@ export default function App() {
         }
       `}</style>
 
+      {showOnboarding && <Onboarding onDone={finishOnboarding} />}
+
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 14px 60px", overflowX: "hidden" }}>
         <header style={{ marginBottom: 18, display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div>
@@ -215,11 +311,27 @@ export default function App() {
             <button onClick={() => setViewDate(new Date(year, month + 1, 1))} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 8, cursor: "pointer", padding: 6 }} aria-label="Next month">
               <ChevronRight size={16} />
             </button>
-            <button onClick={() => supabase.auth.signOut()} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 8, cursor: "pointer", padding: 6, marginLeft: 4, display: "flex" }} aria-label="Log out">
+            <button onClick={() => setShowOnboarding(true)} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 8, cursor: "pointer", padding: 6, marginLeft: 4, display: "flex" }} aria-label="Show tutorial">
+              <HelpCircle size={16} />
+            </button>
+            <button onClick={() => supabase.auth.signOut()} style={{ background: "#fff", border: "1px solid #E1E7D9", borderRadius: 8, cursor: "pointer", padding: 6, display: "flex" }} aria-label="Log out">
               <LogOut size={16} />
             </button>
           </div>
         </header>
+
+        {(syncStatus === "offline" || syncStatus === "syncing") && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6, fontSize: 12, marginBottom: 14,
+            color: syncStatus === "offline" ? "#B0584F" : "#6B7D63",
+            background: syncStatus === "offline" ? "#FBEDEB" : "#F0F3EA",
+            border: `1px solid ${syncStatus === "offline" ? "#E8C4BE" : "#E1E7D9"}`,
+            borderRadius: 8, padding: "6px 10px",
+          }}>
+            {syncStatus === "offline" ? <WifiOff size={13} /> : <RefreshCw size={13} />}
+            {syncStatus === "offline" ? "Offline — changes are saved on this device and will sync when you're back online." : "Syncing…"}
+          </div>
+        )}
 
         {!loaded ? (
           <div style={{ color: "#6B7D63", fontSize: 14 }}>Loading your routines…</div>
@@ -244,6 +356,7 @@ export default function App() {
                     placeholder="Routine name (e.g. Workout)"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addRoutine()}
                     style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}
                   />
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -253,12 +366,12 @@ export default function App() {
                       <option value="monthly">Monthly</option>
                     </select>
                     {freq === "weekly" && (
-                      <select value={weekday} onChange={(e) => setWeekday(e.target.value)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}>
+                      <select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}>
                         {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((w, i) => <option key={w} value={i}>{w}</option>)}
                       </select>
                     )}
                     {freq === "monthly" && (
-                      <select value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}>
+                      <select value={dayOfMonth} onChange={(e) => setDayOfMonth(Number(e.target.value))} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 8, border: "1px solid #D8E0CC", fontSize: 14 }}>
                         {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>Day {d}</option>)}
                       </select>
                     )}
@@ -329,18 +442,12 @@ export default function App() {
                         position: "sticky", left: 0, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3,
                         textAlign: "left", padding: "10px 12px", fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: 13, width: 110, minWidth: 110, maxWidth: 110,
                       }}>Routine</th>
-                      <th style={{
-                        position: "sticky", left: 110, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3,
-                        padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, width: 54, minWidth: 54, maxWidth: 54,
-                      }}>Freq</th>
-                      <th style={{
-                        position: "sticky", left: 164, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3,
-                        padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, width: 44, minWidth: 44, maxWidth: 44,
-                      }}>Done</th>
+                      <th style={{ position: "sticky", left: 110, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3, padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, width: 54, minWidth: 54, maxWidth: 54 }}>Freq</th>
+                      <th style={{ position: "sticky", left: 164, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3, padding: "10px 6px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, width: 44, minWidth: 44, maxWidth: 44 }}>Done</th>
                       <th style={{
                         position: "sticky", left: 208, background: "#1B2A1A", color: "#F1F4EC", zIndex: 3,
                         padding: "10px 8px", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, width: 68, minWidth: 68, maxWidth: 68,
-                        boxShadow: "3px 0 6px -2px rgba(0,0,0,0.15)",
+                        boxShadow: "3px 0 6px -2px rgba(0,0,0,0.25)",
                       }}>Counter</th>
                       {days.map((d) => {
                         const dow = new Date(year, month, d).getDay();
@@ -362,82 +469,89 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {routines.map((r, ri) => (
-                      <tr key={r.id} style={{ background: ri % 2 === 0 ? "#fff" : "#FAFBF7" }}>
-                        <td style={{
-                          position: "sticky", left: 0, background: ri % 2 === 0 ? "#fff" : "#FAFBF7", zIndex: 1,
-                          padding: 0, borderBottom: "1px solid #ECEFE4",
-                          width: 110, minWidth: 110, maxWidth: 110,
-                        }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.color, flexShrink: 0 }} />
-                            <span
-                              title={r.name}
-                              style={{ fontSize: 13, maxWidth: 88, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                            >
-                              {r.name}
-                            </span>
-                            <button onClick={() => removeRoutine(r.id)} aria-label={`Remove ${r.name}`} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#C7B4AE", display: "flex", padding: 2, flexShrink: 0 }}>
-                              <Trash2 size={11} />
-                            </button>
-                          </div>
-                        </td>
-                        <td
-                          title={r.frequency === "weekly" ? `Every ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][r.weekday]}` : r.frequency === "monthly" ? `Day ${r.dayOfMonth} of each month` : "Every day"}
-                          style={{
-                            position: "sticky", left: 110, background: ri % 2 === 0 ? "#fff" : "#FAFBF7", zIndex: 1,
-                            textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7D63",
-                          }}
-                        >
-                          {r.frequency === "weekly" ? "Wkly" : r.frequency === "monthly" ? "Mthly" : "Daily"}
-                        </td>
-                        <td style={{
-                          position: "sticky", left: 164, background: ri % 2 === 0 ? "#fff" : "#FAFBF7", zIndex: 1,
-                          textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#6B7D63",
-                        }}>
-                          {countFor(r)}
-                        </td>
-                        <td style={{
-                          position: "sticky", left: 208, background: ri % 2 === 0 ? "#fff" : "#FAFBF7", zIndex: 1,
-                          textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#4C7A5C", fontWeight: 600,
-                          boxShadow: "3px 0 6px -2px rgba(0,0,0,0.08)",
-                        }}>
-                          {r.goal || "–"}
-                        </td>
-                        {days.map((d) => {
-                          const date = new Date(year, month, d);
-                          const due = isDue(r, year, month, d);
-                          const key = `${r.id}:${fmtDate(year, month, d)}`;
-                          const done = !!completions[key];
-                          const isToday = date.toDateString() === today.toDateString();
-                          const locked = date > today && !isToday;
-                          return (
-                            <td key={d} style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", padding: 3 }}>
-                              {due ? (
-                                <div
-                                  className={`ev-cell ${locked ? "ev-disabled" : ""}`}
-                                  role="button"
-                                  aria-label={`${r.name} on ${fmtDate(year, month, d)}, ${done ? "done" : "not done"}`}
-                                  onClick={() => toggle(r.id, fmtDate(year, month, d), locked)}
-                                  style={{
-                                    width: 22, height: 22, margin: "0 auto", borderRadius: 5,
-                                    background: done ? r.color : "transparent",
-                                    border: `1.4px solid ${done ? r.color : "#D8E0CC"}`,
-                                    opacity: locked ? 0.4 : 1,
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    cursor: locked ? "default" : "pointer",
-                                  }}
-                                >
-                                  {done && <Check size={13} color="#fff" strokeWidth={3} />}
-                                </div>
-                              ) : (
-                                <div style={{ width: 22, height: 22, margin: "0 auto" }} />
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                    {routines.map((r, ri) => {
+                      const rowBg = ri % 2 === 0 ? "#fff" : "#FAFBF7";
+                      return (
+                        <tr key={r.id} style={{ background: rowBg }}>
+                          <td style={{
+                            position: "sticky", left: 0, background: rowBg, zIndex: 1,
+                            padding: 0, borderBottom: "1px solid #ECEFE4",
+                            width: 110, minWidth: 110, maxWidth: 110,
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px" }}>
+                              <span style={{ width: 8, height: 8, borderRadius: "50%", background: r.color, flexShrink: 0 }} />
+                              <span
+                                title={r.name}
+                                style={{ fontSize: 13, maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                              >
+                                {r.name}
+                              </span>
+                              <button onClick={() => removeRoutine(r.id)} aria-label={`Remove ${r.name}`} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "#C7B4AE", display: "flex", padding: 2, flexShrink: 0 }}>
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          </td>
+                          <td
+                            title={r.frequency === "weekly" ? `Every ${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][r.weekday]}` : r.frequency === "monthly" ? `Day ${r.dayOfMonth} of each month` : "Every day"}
+                            style={{
+                              position: "sticky", left: 110, background: rowBg, zIndex: 1,
+                              textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#6B7D63",
+                            }}
+                          >
+                            {r.frequency === "weekly" ? "Wkly" : r.frequency === "monthly" ? "Mthly" : "Daily"}
+                          </td>
+                          <td style={{
+                            position: "sticky", left: 164, background: rowBg, zIndex: 1,
+                            textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#6B7D63",
+                          }}>
+                            {countFor(r)}
+                          </td>
+                          <td style={{
+                            position: "sticky", left: 208, background: rowBg, zIndex: 1,
+                            textAlign: "center", borderBottom: "1px solid #ECEFE4", fontFamily: "'JetBrains Mono', monospace", color: "#4C7A5C", fontWeight: 600,
+                            boxShadow: "3px 0 6px -2px rgba(0,0,0,0.08)",
+                          }}>
+                            {r.goal || "–"}
+                          </td>
+                          {days.map((d) => {
+                            const date = new Date(year, month, d);
+                            const due = isDue(r, year, month, d);
+                            const dateStr = fmtDate(year, month, d);
+                            const key = `${r.id}:${dateStr}`;
+                            const done = !!completions[key];
+                            const isToday = date.toDateString() === today.toDateString();
+                            const locked = date > today && !isToday;
+                            return (
+                              <td key={d} style={{ textAlign: "center", borderBottom: "1px solid #ECEFE4", padding: 3 }}>
+                                {due ? (
+                                  <div
+                                    className={`ev-cell${locked ? " ev-disabled" : ""}`}
+                                    role="button"
+                                    tabIndex={locked ? -1 : 0}
+                                    aria-label={`${r.name} on ${dateStr}, ${done ? "done" : "not done"}`}
+                                    aria-pressed={done}
+                                    onClick={() => toggle(r.id, dateStr, locked)}
+                                    onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggle(r.id, dateStr, locked)}
+                                    style={{
+                                      width: 22, height: 22, margin: "0 auto", borderRadius: 5,
+                                      background: done ? r.color : "transparent",
+                                      border: `1.4px solid ${done ? r.color : "#D8E0CC"}`,
+                                      opacity: locked ? 0.4 : 1,
+                                      display: "flex", alignItems: "center", justifyContent: "center",
+                                      cursor: locked ? "default" : "pointer",
+                                    }}
+                                  >
+                                    {done && <Check size={13} color="#fff" strokeWidth={3} />}
+                                  </div>
+                                ) : (
+                                  <div style={{ width: 22, height: 22, margin: "0 auto" }} />
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
