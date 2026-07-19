@@ -12,7 +12,7 @@ const STEPS = [
   },
   {
     title: "Mark today's progress",
-    body: "In the Grid view, tap today's cell next to a routine to check it off. Past and future days are locked — only today can be marked.",
+    body: "In the Grid view, tap past and today's cell next to a routine to check it off. Future days are locked — only today and past days can be marked.",
   },
   {
     title: "Grid vs. Dashboard",
