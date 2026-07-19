@@ -12,11 +12,15 @@ const STEPS = [
   },
   {
     title: "Mark today's progress",
-    body: "In the Grid view, tap today's cell next to a routine to check it off. Future days are locked — only today and days past can be marked.",
+    body: "In the Grid view, tap today's cell next to a routine to check it off. Past and future days are locked — only today can be marked.",
   },
   {
     title: "Grid vs. Dashboard",
     body: "Switch to Dashboard to see streaks, completion charts, and annual goal progress for everything you're tracking.",
+  },
+  {
+    title: "Make it yours 🎨",
+    body: "Tap the palette icon up top to pick a color theme — Evergreen, Ocean, Sunset, Lavender, or Slate. Whatever suits your taste.",
   },
   {
     title: "Stay on track",
